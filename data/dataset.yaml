@@ -1,0 +1,6 @@
+# Dataset configuration
+path: C:/Users/amitdash/Downloads/Object detaction system/data
+train: images/training/image_2
+val: images/training/image_2
+nc: 3
+names: ['car', 'truck', 'vehicle'] 

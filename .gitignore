@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+data/images/training/image_2/*
+data/images/testing/image_2/*
+data/labels/training/image_2/*
+!data/images/training/image_2/.gitkeep
+!data/images/testing/image_2/.gitkeep
+!data/labels/training/image_2/.gitkeep
+
+# YOLOv5
+yolov5/runs/
+yolov5/data/
+yolov5/weights/
+
+# OS
+.DS_Store
+Thumbs.db 
