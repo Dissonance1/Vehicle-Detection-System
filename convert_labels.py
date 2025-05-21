@@ -1,96 +1,120 @@
 import os
-import glob
+import yaml
+import cv2
+import numpy as np
 
-# Define paths
-kitti_label_dir = 'data/labels/training/label_2'
-yolo_label_dir = 'data/labels/training/image_2'
-image_dir = 'data/images/training/image_2'
-
-# Ensure the output directory exists
-os.makedirs(yolo_label_dir, exist_ok=True)
-
-# Get all KITTI label files
-kitti_labels = glob.glob(os.path.join(kitti_label_dir, '*.txt'))
-
-# Class mapping - only vehicle classes (0-2)
-class_mapping = {
-    # Primary vehicle classes
-    'Car': 0,
-    'Truck': 1,
-    # Other vehicles mapped to class 2
-    'Van': 2,
-    'Tram': 2,
-    'Misc': 2,
-    'Cyclist': 2,
-    # Skip these
-    'Pedestrian': None,
-    'Person': None,
-    'Person_sitting': None,
-    'DontCare': None
-}
-
-def convert_label_file(kitti_label, yolo_label):
-    # Read the KITTI label
-    with open(kitti_label, 'r') as f:
-        lines = f.readlines()
-
-    # Open the YOLOv5 label file for writing
-    with open(yolo_label, 'w') as f:
-        for line in lines:
-            parts = line.strip().split()
-            if len(parts) >= 15:  # Ensure the line has enough parts
-                class_name = parts[0]
-                
-                # Skip if class is not in our mapping or is None
-                if class_name not in class_mapping or class_mapping[class_name] is None:
-                    continue
-                
-                # Extract bounding box coordinates (x1, y1, x2, y2)
-                x1, y1, x2, y2 = map(float, parts[4:8])
-                
-                # Skip if the bounding box is too small (might be noise)
-                if (x2 - x1) < 10 or (y2 - y1) < 10:
-                    continue
-                
-                # Calculate center and dimensions
-                x_center = (x1 + x2) / 2
-                y_center = (y1 + y2) / 2
-                width = x2 - x1
-                height = y2 - y1
-                
-                # Normalize (assuming image dimensions are 1242x375, adjust if different)
-                x_center /= 1242
-                y_center /= 375
-                width /= 1242
-                height /= 375
-                
-                # Get class ID from mapping
-                class_id = class_mapping[class_name]
-                
-                # Write in YOLOv5 format
-                f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
-
-# First, convert all KITTI labels to YOLO format
-for kitti_label in kitti_labels:
-    filename = os.path.basename(kitti_label)
-    yolo_label = os.path.join(yolo_label_dir, filename)
-    convert_label_file(kitti_label, yolo_label)
-
-# Now fix any remaining class 3 labels
-yolo_labels = glob.glob(os.path.join(yolo_label_dir, '*.txt'))
-for yolo_label in yolo_labels:
-    with open(yolo_label, 'r') as f:
-        lines = f.readlines()
+def convert_labels():
+    # Read dataset paths from dataset.yaml
+    with open('data/dataset.yaml', 'r') as f:
+        dataset_config = yaml.safe_load(f)
     
-    # Check if any line starts with '3'
-    if any(line.startswith('3 ') for line in lines):
-        # Create a new file with corrected labels
-        with open(yolo_label, 'w') as f:
+    # Get image paths for dimensions
+    train_img_dir = os.path.join(dataset_config['path'], 'train/images')
+    val_img_dir = os.path.join(dataset_config['path'], 'valid/images')
+    
+    # Original class IDs from the label files:
+    # bus =4 truck =18 car =5  bicycle =13 motorbike =10
+    class_id_mapping = {
+        5: 0,   # Car -> 0
+        18: 1,  # Truck -> 1
+        4: 2,   # Bus -> 2
+        10: 4,  # Motorbike -> 4
+        13: 5   # Bicycle -> 5
+    }
+    
+    # Create output directories if they don't exist
+    os.makedirs('data/labels/train', exist_ok=True)
+    os.makedirs('data/labels/val', exist_ok=True)
+    
+    # Process training labels
+    train_labels_dir = os.path.join(dataset_config['path'], 'train/labels')
+    train_count = 0
+    for label_file in os.listdir(train_labels_dir):
+        if label_file.endswith('.txt'):
+            input_path = os.path.join(train_labels_dir, label_file)
+            output_path = os.path.join('data/labels/train', label_file)
+            
+            # Get image dimensions - This part might not be necessary if labels are already normalized
+            # img_file = label_file.replace('.txt', '.jpg')
+            # img_path = os.path.join(train_img_dir, img_file)
+            # if not os.path.exists(img_path):
+            #     print(f"Warning: Image {img_file} not found, skipping label {label_file}")
+            #     continue
+            #     
+            # img = cv2.imread(img_path)
+            # if img is None:
+            #     print(f"Warning: Could not read image {img_file}, skipping label {label_file}")
+            #     continue
+            #     
+            # img_height, img_width = img.shape[:2]
+            
+            # Read and convert labels
+            with open(input_path, 'r') as f:
+                lines = f.readlines()
+            
+            converted_lines = []
             for line in lines:
-                if line.startswith('3 '):
-                    # Replace class 3 with class 2
-                    f.write('2' + line[1:])
-                else:
-                    f.write(line)
+                parts = line.strip().split()
+                if len(parts) == 5:
+                    class_id = int(parts[0])
+                    if class_id in class_id_mapping:
+                        # Convert class ID
+                        new_class_id = class_id_mapping[class_id]
+                        # Keep the rest of the values (x_center, y_center, width, height) as they are
+                        converted_line = f"{new_class_id} {' '.join(parts[1:])}\n"
+                        converted_lines.append(converted_line)
+            
+            # Write converted labels
+            with open(output_path, 'w') as f:
+                f.writelines(converted_lines)
+            
+            train_count += 1
+    
+    # Process validation labels
+    val_labels_dir = os.path.join(dataset_config['path'], 'valid/labels')
+    val_count = 0
+    for label_file in os.listdir(val_labels_dir):
+        if label_file.endswith('.txt'):
+            input_path = os.path.join(val_labels_dir, label_file)
+            output_path = os.path.join('data/labels/val', label_file)
+            
+            # Get image dimensions - This part might not be necessary if labels are already normalized
+            # img_file = label_file.replace('.txt', '.jpg')
+            # img_path = os.path.join(val_img_dir, img_file)
+            # if not os.path.exists(img_path):
+            #     print(f"Warning: Image {img_file} not found, skipping label {label_file}")
+            #     continue
+            #     
+            # img = cv2.imread(img_path)
+            # if img is None:
+            #     print(f"Warning: Could not read image {img_file}, skipping label {label_file}")
+            #     continue
+            #     
+            # img_height, img_width = img.shape[:2]
+            
+            # Read and convert labels
+            with open(input_path, 'r') as f:
+                lines = f.readlines()
+            
+            converted_lines = []
+            for line in lines:
+                parts = line.strip().split()
+                if len(parts) == 5:
+                    class_id = int(parts[0])
+                    if class_id in class_id_mapping:
+                        # Convert class ID
+                        new_class_id = class_id_mapping[class_id]
+                        # Keep the rest of the values (x_center, y_center, width, height) as they are
+                        converted_line = f"{new_class_id} {' '.join(parts[1:])}\n"
+                        converted_lines.append(converted_line)
+            
+            # Write converted labels
+            with open(output_path, 'w') as f:
+                f.writelines(converted_lines)
+            
+            val_count += 1
+    
+    print(f"Successfully converted {train_count} training labels and {val_count} validation labels")
 
-print("Label conversion completed.") 
+if __name__ == "__main__":
+    convert_labels() 
