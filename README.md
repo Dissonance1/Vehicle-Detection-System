@@ -5,13 +5,13 @@ A real-time vehicle detection system using YOLOv5 and Streamlit for a user-frien
 ## Screenshots
 
 ### Detection Results
-![Detection Results](screenshots/detection_results.png)
+![Detection Results](screenshots/detection_example.png.png)
 
 ### User Interface
-![User Interface](screenshots/user_interface.png)
+![User Interface](screenshots/streamlit_interface.png.png)
 
 ### Training Progress
-![Training Progress](screenshots/training_progress.png)
+![Training Progress](screenshots/training_results.png.png)
 
 ## Setup Instructions
 
