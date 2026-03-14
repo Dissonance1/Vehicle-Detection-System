@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Management AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="glass">
+        <div class="logo">TRAFFIC.AI</div>
+        <nav class="nav-modes">
+            <input type="file" id="image-upload" accept="image/*,video/*" style="display: none;">
+            <button class="mode-btn" onclick="document.getElementById('image-upload').click()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Upload Data
+            </button>
+            <button class="mode-btn" id="live-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                Go Live
+            </button>
+            <button class="mode-btn" id="demo-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Simulation
+            </button>
+        </nav>
+    </header>
+
+    <main class="main-container">
+        <!-- Live Monitoring Section -->
+        <section class="dashboard-view">
+            <div class="video-feed-container glass">
+                <div class="video-placeholder" id="video-feed">
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+                    <p style="color: var(--text-dim); margin-top: 1rem;">Waiting for Video Input...</p>
+                </div>
+                <canvas id="detection-canvas" class="detection-overlay"></canvas>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card glass">
+                    <div class="stat-label">Total Vehicles</div>
+                    <div class="stat-value" id="count-total">0</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Ambulances</div>
+                    <div class="stat-value" style="color: var(--error);" id="count-ambulance">0</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Traffic Density</div>
+                    <div class="stat-value" id="density-val">LOW</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Avg Speed</div>
+                    <div class="stat-value" id="avg-speed">0 km/h</div>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="stat-card glass">
+                    <div class="stat-label">Cars</div>
+                    <div class="stat-value" style="font-size: 1.2rem;" id="count-car">0</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Bikes</div>
+                    <div class="stat-value" style="font-size: 1.2rem;" id="count-bike">0</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Trucks</div>
+                    <div class="stat-value" style="font-size: 1.2rem;" id="count-truck">0</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Autos</div>
+                    <div class="stat-value" style="font-size: 1.2rem;" id="count-auto">0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Control Sidebar -->
+        <aside class="control-sidebar">
+            <div class="traffic-light-sim glass">
+                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">DYNAMINC SIGNAL CONTROL</h3>
+                <div class="light-housing">
+                    <div class="light red" id="light-red"></div>
+                    <div class="light yellow" id="light-yellow"></div>
+                    <div class="light green active" id="light-green"></div>
+                </div>
+                <div class="timer-display" id="signal-timer">30</div>
+                <p id="signal-status" style="color: var(--success); font-weight: 600;">FLOW OPTIMIZED</p>
+            </div>
+
+            <div class="glass" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">CONGESTION PREDICTION (15m)</h3>
+                <div class="prediction-chart" id="chart">
+                    <!-- Bars injected by JS -->
+                </div>
+            </div>
+
+            <div class="alerts-panel glass">
+                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">REAL-TIME ALERTS</h3>
+                <div id="alerts-container">
+                    <div class="alert-item alert-info">System initialized...</div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

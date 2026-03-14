@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+data/
+trafic_data/
+yolov5/runs/
+yolov5/data/
+yolov5/weights/
+*.pt
+*.weights
+*.mp4
+*.avi
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
