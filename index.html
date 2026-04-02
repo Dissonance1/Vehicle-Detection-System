@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Traffic Management AI</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <main class="main-container">
@@ -137,9 +139,11 @@
                     <div class="stat-label">AI Traffic Density</div>
                     <div class="stat-value" id="density-val">LOW</div>
                 </div>
-                <div class="stat-card glass">
-                    <div class="stat-label">Forecasted Load (Next 1h)</div>
-                    <div class="stat-value" id="forecast-val">0</div>
+                <div class="stat-card glass chart-card">
+                    <div class="stat-label">24h Traffic Forecast Trend</div>
+                    <div class="chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
@@ -171,14 +175,7 @@
             <div class="glass" style="padding: 1.5rem;">
                 <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">LSTM TRAFFIC FORECAST (NEXT 5h)</h3>
                 <div class="prediction-chart" id="chart">
-                    <!-- Bars injected by JS -->
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-dim);">
-                    <span>+1h</span>
-                    <span>+2h</span>
-                    <span>+3h</span>
-                    <span>+4h</span>
-                    <span>+5h</span>
+                    <canvas id="predictionCanvas"></canvas>
                 </div>
             </div>
 
@@ -191,9 +188,10 @@
         </aside>
     <div class="floating-controls glass">
         <button class="mode-btn" id="live-btn">GO LIVE</button>
-        <button class="mode-btn" id="demo-btn" style="background: rgba(0, 242, 254, 0.2);">DEMO MODE</button>
+        <button class="mode-btn" id="demo-btn">DEMO MODE</button>
         <input type="file" id="bulk-upload" hidden multiple accept="video/*">
         <button class="mode-btn" onclick="document.getElementById('bulk-upload').click()">UPLOAD FEEDS</button>
+        <button class="mode-btn secondary" id="download-btn">DOWNLOAD REPORT</button>
     </div>
 
     <script src="script.js"></script>

@@ -239,6 +239,14 @@ def predict():
         print(f"Prediction Error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/export', methods=['GET'])
+def export_data():
+    try:
+        init_history_file()
+        return send_from_directory(directory='.', path=HISTORY_FILE, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     load_model()
     load_lstm()

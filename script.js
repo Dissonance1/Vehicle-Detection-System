@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
         timer: 30,
         isDemo: false,
         activeMode: 'none',
-        intervals: { N: null, S: null, E: null, W: null }
+        intervals: { N: null, S: null, E: null, W: null },
+        charts: { prediction: null }
     };
 
     const elements = {
@@ -44,34 +45,53 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'WEST Clearing (↑ ← → ↩)', arrows: { N: [], S: [], E: [], W: ['S', 'L', 'R'] }, pair: 'w' }
     ];
 
-    // --- LSTM Prediction Logic ---
+    // --- Advanced Charting Logic ---
+    function initCharts() {
+        const ctx = document.getElementById('predictionCanvas').getContext('2d');
+        state.charts.prediction = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['+1h', '+2h', '+3h', '+4h', '+5h'],
+                datasets: [{
+                    label: 'Predicted Traffic Volume',
+                    data: [0, 0, 0, 0, 0],
+                    borderColor: '#00f2fe',
+                    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
+                    x: { grid: { display: false }, border: { display: false } }
+                }
+            }
+        });
+    }
+
     async function updateForecast() {
         try {
-            let totalForecast = 0;
             const chartData = [0, 0, 0, 0, 0];
-
             for (const d of directions) {
                 const res = await fetch(`/api/predict?direction=${d}`);
                 const data = await res.json();
                 if (data.forecast) {
-                    totalForecast += data.forecast[0];
                     data.forecast.forEach((v, i) => chartData[i] += v);
                 }
             }
 
-            elements.forecast.innerText = Math.round(totalForecast / 4);
-            elements.chart.innerHTML = '';
-            chartData.forEach((val, i) => {
-                const bar = document.createElement('div');
-                bar.className = 'chart-bar';
-                const height = Math.min(Math.max((val / 4 / 50) * 100, 5), 100);
-                bar.style.height = height + '%';
-                bar.title = `T+${i+1}h: ${Math.round(val/4)} vehicles`;
-                elements.chart.appendChild(bar);
-            });
-        } catch (err) {
-            console.error('Forecast Error:', err);
-        }
+            const averagedData = chartData.map(v => Math.round(v / 4));
+            
+            if (state.charts.prediction) {
+                state.charts.prediction.data.datasets[0].data = averagedData;
+                state.charts.prediction.update('none');
+            }
+        } catch (err) { console.error('Forecast Error:', err); }
     }
 
     // --- Signal Management Logic ---
@@ -269,6 +289,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150); // ~7 FPS for smooth tracking
     }
 
+    document.getElementById('download-btn').addEventListener('click', () => {
+        addAlert('REPORT: Generating traffic history CSV...', 'alert-info');
+        window.location.href = '/api/export';
+    });
+
+    initCharts();
     // --- Loops ---
     setInterval(updateSignals, 1000);
     state.intervals.demo = setInterval(() => {
