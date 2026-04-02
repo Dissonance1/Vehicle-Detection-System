@@ -1,6 +1,6 @@
-# Vehicle Detection System
+# Smart Traffic Management AI
 
-A real-time vehicle detection system using YOLOv5 and Streamlit for a user-friendly interface.
+A real-time vehicle detection and traffic management system using YOLOv5 and a Flask-based full-stack web interface.
 
 ## Screenshots
 
@@ -8,7 +8,7 @@ A real-time vehicle detection system using YOLOv5 and Streamlit for a user-frien
 ![Detection Results](screenshots/detection_example.png.png)
 
 ### User Interface
-![User Interface](screenshots/streamlit_interface.png.png)
+![User Interface](screenshots/fullstack_interface.png)
 
 ### Training Progress
 ![Training Progress](screenshots/training_results.png.png)
@@ -63,18 +63,17 @@ python convert_labels.py
 
 ### Running the Application
 
-1. Train the YOLOv5 model:
+1. Train the YOLOv5 model (Optional if weights exist):
 ```bash
 python yolov5/train.py --img 480 --batch 24 --epochs 30 --data data/dataset.yaml --weights yolov5/yolov5n.pt --workers 4 --cache
 ```
-(You can adjust parameters like `--epochs` and `--batch` as needed)
 
-2. Start the Streamlit app:
+2. Start the Flask application:
 ```bash
-streamlit run app.py
+python app.py
 ```
 
-3. Open your browser and navigate to the provided local URL (usually `http://localhost:8501`).
+3. Open your browser and navigate to `http://localhost:8000`.
 
 4. Upload an image and adjust the confidence threshold for detection.
 
@@ -176,7 +175,10 @@ streamlit run app.py
 ## Project Structure
 ```
 vehicle-detection-system/
-├── app.py                 # Streamlit application
+├── app.py                 # Flask Backend Application
+├── index.html             # Frontend Structure
+├── style.css              # Premium Glassmorphism Styles
+├── script.js              # Frontend Logic & AI Integration
 ├── data/
 │   ├── dataset.yaml      # Dataset configuration
 │   ├── images/           # Training and validation images (copied from trafic_data)

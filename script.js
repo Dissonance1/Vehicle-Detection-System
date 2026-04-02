@@ -1,390 +1,294 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const stats = {
+    const directions = ['N', 'S', 'E', 'W'];
+    const state = {
+        counts: { N: 0, S: 0, E: 0, W: 0 },
+        phase: 0, // 0: NS Straight, 1: NS Left, 2: EW Straight, 3: EW Left
+        timer: 30,
+        isDemo: false,
+        activeMode: 'none',
+        intervals: { N: null, S: null, E: null, W: null }
+    };
+
+    const elements = {
+        timer: document.getElementById('signal-timer'),
+        status: document.getElementById('signal-status'),
         total: document.getElementById('count-total'),
-        ambulance: document.getElementById('count-ambulance'),
-        car: document.getElementById('count-car'),
-        bike: document.getElementById('count-bike'),
-        truck: document.getElementById('count-truck'),
-        auto: document.getElementById('count-auto'),
         density: document.getElementById('density-val'),
-        speed: document.getElementById('avg-speed'),
-        timer: document.getElementById('signal-timer')
+        forecast: document.getElementById('forecast-val'),
+        chart: document.getElementById('chart'),
+        alerts: document.getElementById('alerts-container'),
+        lights: {
+            ns: { red: document.getElementById('light-ns-red'), green: document.getElementById('light-ns-green') },
+            ew: { red: document.getElementById('light-ew-red'), green: document.getElementById('light-ew-green') }
+        }
     };
 
-    const lights = {
-        red: document.getElementById('light-red'),
-        yellow: document.getElementById('light-yellow'),
-        green: document.getElementById('light-green')
-    };
-
-    const alertsContainer = document.getElementById('alerts-container');
-    const chartContainer = document.getElementById('chart');
-
-    let currentTimer = 30;
-    let isAmbulanceDetected = false;
-    let vehicleCounts = { car: 0, bike: 0, truck: 0, auto: 0, ambulance: 0 };
-
-    // Initialize Prediction Chart
-    for (let i = 0; i < 12; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'chart-bar';
-        bar.style.height = Math.random() * 80 + 20 + '%';
-        chartContainer.appendChild(bar);
-    }
-
-    // Update Prediction Chart periodically
-    setInterval(() => {
-        const bars = document.querySelectorAll('.chart-bar');
-        bars.forEach(bar => {
-            bar.style.height = Math.random() * 80 + 20 + '%';
+    // Initialize Directional Elements
+    directions.forEach(d => {
+        elements[`count-${d}-L`] = document.getElementById(`count-${d}-L`);
+        elements[`count-${d}-S`] = document.getElementById(`count-${d}-S`);
+        elements[`feed-${d}`] = document.getElementById(`video-feed-${d}`);
+        elements[`upload-${d}`] = document.getElementById(`upload-${d}`);
+        elements[`container-${d}`] = document.getElementById(`container-${d}`);
+        elements[`flow-${d}`] = document.getElementById(`flow-${d}`);
+        // Arrow Elements
+        ['RED', 'L', 'S', 'R'].forEach(type => {
+            elements[`signal-${d}-${type}`] = document.getElementById(`signal-${d}-${type}`);
         });
-    }, 3000);
+    });
 
-    // Simulation Logic
-    function updateSimulation() {
-        if (currentTimer > 0) {
-            currentTimer--;
-            stats.timer.innerText = currentTimer;
-            
-            if (currentTimer < 5 && lights.green.classList.contains('active')) {
-                setLight('yellow');
+    const phaseConfigs = [
+        { name: 'NORTH Clearing (↑ ← → ↩)', arrows: { N: ['S', 'L', 'R'], S: [], E: [], W: [] }, pair: 'n' },
+        { name: 'SOUTH Clearing (↑ ← → ↩)', arrows: { N: [], S: ['S', 'L', 'R'], E: [], W: [] }, pair: 's' },
+        { name: 'EAST Clearing (↑ ← → ↩)', arrows: { N: [], S: [], E: ['S', 'L', 'R'], W: [] }, pair: 'e' },
+        { name: 'WEST Clearing (↑ ← → ↩)', arrows: { N: [], S: [], E: [], W: ['S', 'L', 'R'] }, pair: 'w' }
+    ];
+
+    // --- LSTM Prediction Logic ---
+    async function updateForecast() {
+        try {
+            let totalForecast = 0;
+            const chartData = [0, 0, 0, 0, 0];
+
+            for (const d of directions) {
+                const res = await fetch(`/api/predict?direction=${d}`);
+                const data = await res.json();
+                if (data.forecast) {
+                    totalForecast += data.forecast[0];
+                    data.forecast.forEach((v, i) => chartData[i] += v);
+                }
             }
+
+            elements.forecast.innerText = Math.round(totalForecast / 4);
+            elements.chart.innerHTML = '';
+            chartData.forEach((val, i) => {
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                const height = Math.min(Math.max((val / 4 / 50) * 100, 5), 100);
+                bar.style.height = height + '%';
+                bar.title = `T+${i+1}h: ${Math.round(val/4)} vehicles`;
+                elements.chart.appendChild(bar);
+            });
+        } catch (err) {
+            console.error('Forecast Error:', err);
+        }
+    }
+
+    // --- Signal Management Logic ---
+    function updateSignals() {
+        if (state.timer > 0) {
+            state.timer--;
+            elements.timer.innerText = state.timer;
         } else {
-            if (lights.red.classList.contains('active')) {
-                setLight('green');
-                currentTimer = isAmbulanceDetected ? 45 : 30;
-                isAmbulanceDetected = false; // Reset after priority pass
-            } else {
-                setLight('red');
-                currentTimer = 20;
-            }
-        }
-
-        // Randomly simulate vehicle detections
-        if (Math.random() > 0.7) {
-            const types = ['car', 'bike', 'truck', 'auto', 'ambulance'];
-            const type = types[Math.floor(Math.random() * types.length)];
+            state.phase = (state.phase + 1) % 4;
+            const currentPhase = phaseConfigs[state.phase];
             
-            vehicleCounts[type]++;
-            updateStats();
-
-            if (type === 'ambulance') {
-                triggerAmbulancePriority();
-            }
+            const load = state.counts[currentPhase.pair.toUpperCase()] || 10;
+            state.timer = Math.min(60, Math.max(15, Math.ceil(load * 2)));
+            addAlert(`PHASE: ${currentPhase.name}`, 'alert-info');
         }
+
+        const config = phaseConfigs[state.phase];
+        
+        // Update Side Indicators
+        elements.lights.ns.green.classList.toggle('active', config.pair === 'n' || config.pair === 's');
+        elements.lights.ns.red.classList.toggle('active', config.pair !== 'n' && config.pair !== 's');
+        elements.lights.ew.green.classList.toggle('active', config.pair === 'e' || config.pair === 'w');
+        elements.lights.ew.red.classList.toggle('active', config.pair !== 'e' && config.pair !== 'w');
+
+        directions.forEach(d => {
+            const activeArrows = config.arrows[d];
+            const hasGreen = activeArrows.length > 0;
+
+            // Update Physical Lenses
+            elements[`signal-${d}-RED`].classList.toggle('active', !hasGreen);
+            ['L', 'S', 'R'].forEach(type => {
+                const isActive = activeArrows.includes(type);
+                elements[`signal-${d}-${type}`].classList.toggle('active', isActive);
+            });
+            
+            // Toggle Specific Flow Icons on Feed
+            const flowContainer = elements[`flow-${d}`];
+            const straightArrow = flowContainer.querySelector('.arrow-straight');
+            const leftArrow = flowContainer.querySelector('.arrow-left');
+            
+            const hasStraight = activeArrows.includes('S');
+            const hasLeft = activeArrows.includes('L');
+            
+            straightArrow.style.display = hasStraight ? 'block' : 'none';
+            leftArrow.style.display = hasLeft ? 'block' : 'none';
+            
+            flowContainer.classList.toggle('active', hasGreen);
+        });
     }
 
-    function setLight(color) {
-        Object.values(lights).forEach(l => l.classList.remove('active'));
-        lights[color].classList.add('active');
+    // --- Video Processing Logic ---
+    async function startProcessing(direction, file) {
+        if (state.intervals[direction]) clearInterval(state.intervals[direction]);
         
-        const status = document.getElementById('signal-status');
-        if (color === 'red') {
-            status.innerText = 'WAITING';
-            status.style.color = 'var(--error)';
-        } else if (color === 'green') {
-            status.innerText = 'FLOW OPTIMIZED';
-            status.style.color = 'var(--success)';
-        } else {
-            status.innerText = 'PREPARING';
-            status.style.color = 'var(--warning)';
-        }
+        const videoURL = URL.createObjectURL(file);
+        elements[`feed-${direction}`].innerHTML = `
+            <video id="vid-${direction}" autoplay loop muted style="width: 100%; height: 100%; object-fit: cover;">
+                <source src="${videoURL}" type="${file.type}">
+            </video>
+            <canvas id="canvas-${direction}" style="display: none;"></canvas>
+            <img id="ai-${direction}" style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: cover; z-index: 2; pointer-events: none;">
+        `;
+        
+        const video = document.getElementById(`vid-${direction}`);
+        startProcessingLoop(direction, video);
     }
 
-    function updateStats() {
-        stats.car.innerText = vehicleCounts.car;
-        stats.bike.innerText = vehicleCounts.bike;
-        stats.truck.innerText = vehicleCounts.truck;
-        stats.auto.innerText = vehicleCounts.auto;
-        stats.ambulance.innerText = vehicleCounts.ambulance;
+    // --- Data Handling ---
+    function updateUI() {
+        let total = 0;
+        directions.forEach(d => {
+            const laneTotal = state.counts[d];
+            total += laneTotal;
+        });
+        elements.total.innerText = total;
         
-        const total = Object.values(vehicleCounts).reduce((a, b) => a + b, 0);
-        stats.total.innerText = total;
-
-        // Density logic
-        if (total > 50) stats.density.innerText = 'HIGH';
-        else if (total > 20) stats.density.innerText = 'MEDIUM';
-        else stats.density.innerText = 'LOW';
-
-        stats.speed.innerText = Math.floor(Math.random() * 20 + 30) + ' km/h';
-    }
-
-    function triggerAmbulancePriority() {
-        if (isAmbulanceDetected) return; // Prevent spam
-        isAmbulanceDetected = true;
-        addAlert('EMERGENCY: Ambulance Detected! Overriding Signal', 'alert-emergency');
-        
-        // Immediate green light override
-        if (!lights.green.classList.contains('active')) {
-            setLight('green');
-            currentTimer = 20; // Give time to pass
-            stats.timer.innerText = currentTimer;
-        }
+        const density = total > 40 ? 'CRITICAL' : (total > 20 ? 'BUSY' : 'NORMAL');
+        elements.density.innerText = density;
+        elements.density.style.color = total > 40 ? 'var(--error)' : (total > 20 ? 'var(--warning)' : 'var(--success)');
     }
 
     function addAlert(msg, className) {
-        console.log(`[Alert] ${msg}`);
         const div = document.createElement('div');
         div.className = `alert-item ${className}`;
         div.innerText = msg;
-        alertsContainer.prepend(div);
-        
-        if (alertsContainer.children.length > 8) {
-            alertsContainer.lastElementChild.remove();
-        }
+        elements.alerts.prepend(div);
+        if (elements.alerts.children.length > 5) elements.alerts.lastElementChild.remove();
     }
 
-    function debugLog(msg) {
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[Debug ${timestamp}] ${msg}`);
-        // Optionally show in a hidden debug panel if needed
-    }
-
-    // AI Detection Integration
-    const imageUpload = document.getElementById('image-upload');
-    const liveBtn = document.getElementById('live-btn');
-    const demoBtn = document.getElementById('demo-btn');
-    const videoFeed = document.getElementById('video-feed');
-    
-    let isLive = false;
-    let isDemo = false;
-    let activeMode = 'none'; // Track active mode: 'none', 'demo', 'live', 'upload'
-
-    // Helper to update prediction chart with real data
-    function updatePredictionsFromData(totalCount) {
-        const bars = document.querySelectorAll('.chart-bar');
-        bars.forEach((bar, index) => {
-            // Simple trend: next intervals fluctuate around current total
-            const trend = totalCount * (1 + (Math.random() * 0.4 - 0.2));
-            bar.style.height = Math.min(Math.max(trend * 2, 10), 100) + '%';
+    // --- Event Listeners ---
+    directions.forEach(d => {
+        elements[`upload-${d}`].addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.isDemo = false;
+                addAlert(`UPLOAD: Direction ${d} video active`, 'alert-info');
+                startProcessing(d, file);
+            }
         });
-    }
+        
+        // Prevent click bubble to trigger file input multiple times
+        elements[`container-${d}`].addEventListener('click', (e) => {
+            if (e.target.tagName !== 'INPUT') elements[`upload-${d}`].click();
+        });
+    });
 
-    imageUpload.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    document.getElementById('bulk-upload').addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        files.forEach((file, i) => {
+            if (i < 4) startProcessing(directions[i], file);
+        });
+    });
 
-        const isVideo = file.type.startsWith('video/');
-        isDemo = false;
-        isLive = false;
-        activeMode = 'upload';
-        stopWebcam(); // Reset any existing stream
-        updateModeUI('upload');
+    document.getElementById('demo-btn').addEventListener('click', () => {
+        state.isDemo = !state.isDemo;
+        if (state.isDemo) {
+            directions.forEach(d => {
+                if (state.intervals[d]) clearInterval(state.intervals[d]);
+                state.counts[d] = 10;
+                elements[`feed-${d}`].innerHTML = `<p style="color: var(--primary);">SIMULATED FEED ACTIVE</p>`;
+            });
+            addAlert('SIMULATION: 4-Way Traffic Patterns Active', 'alert-success');
+        }
+    });
 
-        const mediaURL = URL.createObjectURL(file);
-        if (isVideo) {
-            videoFeed.innerHTML = `
-                <video id="uploaded-video" autoplay loop muted style="width: 100%; height: 100%; object-fit: contain; border-radius: 20px;">
-                    <source src="${mediaURL}" type="${file.type}">
-                </video>
-                <div class="overlay-status">AI Vision Initializing...</div>
-                <canvas id="live-canvas" style="display: none;"></canvas>
-            `;
-            // Start real-time processing loop for this video
-            setTimeout(() => startLiveProcessing('uploaded-video'), 500);
-            addAlert('VIDEO LOADED: Starting AI Vision Monitor', 'alert-info');
-        } else {
-            videoFeed.innerHTML = `
-                <img src="${mediaURL}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 20px;">
-                <div class="overlay-status">Static Image Analysis...</div>
+    document.getElementById('live-btn').addEventListener('click', () => {
+        state.isDemo = false;
+        addAlert('LIVE: Initializing system camera...', 'alert-info');
+        startLiveStream('N'); // Default live to North feed
+    });
+
+    async function startLiveStream(direction) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (state.intervals[direction]) clearInterval(state.intervals[direction]);
+            
+            elements[`feed-${direction}`].innerHTML = `
+                <video id="vid-${direction}" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <canvas id="canvas-${direction}" style="display: none;"></canvas>
+                <img id="ai-${direction}" style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: cover; z-index: 2; pointer-events: none;">
             `;
             
-            // Single detection for static image
-            const formData = new FormData();
-            formData.append('image', file);
-            try {
-                const response = await fetch('/api/detect', { method: 'POST', body: formData });
-                const data = await response.json();
-                if (data.image) {
-                    videoFeed.innerHTML = `<img src="data:image/jpeg;base64,${data.image}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 20px;">`;
-                    vehicleCounts = data.counts;
-                    updateStats();
-                    updatePredictionsFromData(data.counts.total);
-                    addAlert(`AI ANALYSIS: Detected ${data.counts.total} vehicles`, 'alert-info');
-                }
-            } catch (err) { console.error(err); }
+            const video = document.getElementById(`vid-${direction}`);
+            video.srcObject = stream;
+            
+            // Start detection loop for live stream
+            startProcessingLoop(direction, video);
+            addAlert('LIVE: North camera stream active', 'alert-success');
+        } catch (err) {
+            console.error('Webcam Error:', err);
+            addAlert('LIVE ERROR: Camera access denied', 'alert-error');
         }
-    });
+    }
 
-    // Unified Live Mode Logic
-    let liveInterval = null;
+    state.pending = { N: false, S: false, E: false, W: false };
 
-    liveBtn.addEventListener('click', async () => {
-        isLive = !isLive;
-        isDemo = false;
-        activeMode = isLive ? 'live' : 'none';
-        stopWebcam(); // Clean shutdown before switching
-        updateModeUI(isLive ? 'live' : 'none');
-
-        if (isLive) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                videoFeed.innerHTML = `
-                    <video id="webcam" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 20px; opacity: 0; position: absolute; top:0; left:0;"></video>
-                    <canvas id="live-canvas" style="display: none;"></canvas>
-                    <div class="overlay-status">AI Vision Initializing...</div>
-                `;
-                const videoEl = document.getElementById('webcam');
-                videoEl.srcObject = stream;
-                
-                // Play to ensure we get frames
-                videoEl.play();
-                
-                setTimeout(() => startLiveProcessing('webcam'), 1000);
-                addAlert('LIVE MODE: Streaming from Webcam', 'alert-success');
-            } catch (err) {
-                addAlert('Live Error: Webcam access denied', 'alert-emergency');
-                isLive = false;
-                updateModeUI('none');
-            }
-        }
-    });
-
-    async function startLiveProcessing(videoElementId) {
-        if (liveInterval) clearInterval(liveInterval);
-        console.log(`Starting real-time monitoring on: ${videoElementId}`);
+    function startProcessingLoop(direction, video) {
+        const canvas = document.getElementById(`canvas-${direction}`);
+        const aiImg = document.getElementById(`ai-${direction}`);
         
-        liveInterval = setInterval(async () => {
-            // Stop logic
-            if (activeMode === 'live' && videoElementId !== 'webcam') return;
-            if (activeMode === 'upload' && videoElementId !== 'uploaded-video') return;
-            if (activeMode === 'none' || activeMode === 'demo') {
-                clearInterval(liveInterval);
-                return;
-            }
-
-            const video = document.getElementById(videoElementId);
-            const canvas = document.getElementById('live-canvas');
-            if (!video || !canvas) {
-                console.warn('Monitoring elements missing, retrying...');
-                return;
-            }
-
-            // Ensure video is playing and has dimensions
-            if (video.paused || video.ended || video.videoWidth === 0) return;
-
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+        state.intervals[direction] = setInterval(async () => {
+            if (video.paused || video.ended || video.videoWidth === 0 || state.pending[direction]) return;
+            
+            // Downscale for performance (640px width is sweet spot for speed vs clarity)
+            const scale = 640 / video.videoWidth;
+            canvas.width = 640;
+            canvas.height = video.videoHeight * scale;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            state.pending[direction] = true;
             canvas.toBlob(async (blob) => {
-                if (!blob) return;
                 const formData = new FormData();
-                formData.append('image', blob, 'frame.jpg');
-
+                formData.append('image', blob);
+                formData.append('direction', direction);
+                
                 try {
-                    const response = await fetch('/api/detect', { method: 'POST', body: formData });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const res = await fetch('/api/detect', { method: 'POST', body: formData });
+                    const data = await res.json();
                     
-                    const data = await response.json();
+                    const total = data.counts.total;
+                    const left = Math.floor(total * 0.4);
+                    const straight = total - left;
                     
-                    if (data.counts && data.image) {
-                        vehicleCounts = data.counts;
-                        updateStats();
-                        updatePredictionsFromData(data.counts.total);
-                        
-                        // Persistent AI Frame
-                        let aiImg = document.getElementById('ai-vision-frame');
-                        if (!aiImg) {
-                            debugLog('Creating AI overlay image');
-                            videoFeed.insertAdjacentHTML('beforeend', `<img id="ai-vision-frame" style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: contain; border-radius: 20px; z-index: 5; pointer-events: none;">`);
-                            aiImg = document.getElementById('ai-vision-frame');
-                        }
-                        aiImg.src = "data:image/jpeg;base64," + data.image;
-                        aiImg.style.display = 'block';
-                        debugLog(`AI Frame updated: ${data.counts.total} vehicles`);
-
-                        if (data.counts.ambulance > 0) triggerAmbulancePriority();
-                    } else if (data.error) {
-                        console.error('AI Error:', data.error);
-                    }
-                } catch (err) { 
-                    console.error('Detection Loop Error:', err); 
-                }
-            }, 'image/jpeg', 0.5);
-        }, 800); // 800ms for stability
+                    state.counts[direction] = total;
+                    elements[`count-${direction}-L`].innerText = left;
+                    elements[`count-${direction}-S`].innerText = straight;
+                    
+                    if (data.image) aiImg.src = 'data:image/png;base64,' + data.image;
+                    updateUI();
+                } catch (err) { console.error(`AI Error (${direction}):`, err); }
+                finally { state.pending[direction] = false; }
+            }, 'image/png', 0.5); // Lower quality PNG for faster wire transfer
+        }, 150); // ~7 FPS for smooth tracking
     }
 
-    function stopWebcam() {
-        const video = document.getElementById('webcam');
-        if (video && video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-            videoFeed.innerHTML = simulationPlaceholder;
+    // --- Loops ---
+    setInterval(updateSignals, 1000);
+    state.intervals.demo = setInterval(() => {
+        if (state.isDemo) {
+            directions.forEach(d => {
+                const change = Math.floor(Math.random() * 5) - 2;
+                state.counts[d] = Math.max(0, state.counts[d] + change);
+                
+                // Lane Distribution Simulation
+                const total = state.counts[d];
+                const left = Math.floor(total * 0.4);
+                const straight = total - left;
+                
+                elements[`count-${d}-L`].innerText = left;
+                elements[`count-${d}-S`].innerText = straight;
+            });
+            updateUI();
         }
-        if (liveInterval) {
-            clearInterval(liveInterval);
-            liveInterval = null;
-        }
-    }
+    }, 2000);
 
-    function updateModeUI(mode) {
-        [liveBtn, demoBtn].forEach(b => b.classList.remove('active'));
-        if (mode === 'live') liveBtn.classList.add('active');
-        if (mode === 'demo') demoBtn.classList.add('active');
-    }
-
-    const simulationPlaceholder = `
-        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
-        <p style="color: var(--text-dim); margin-top: 1rem;">Waiting for Video Input...</p>
-    `;
-
-    demoBtn.addEventListener('click', () => {
-        isDemo = !isDemo;
-        isLive = false;
-        activeMode = isDemo ? 'demo' : 'none';
-        stopWebcam();
-        updateModeUI(isDemo ? 'demo' : 'none');
-        
-        if (isDemo) {
-            addAlert('SIMULATION: Running Demo Logic...', 'alert-info');
-        } else {
-            addAlert('SIMULATION: Stopped', 'alert-info');
-        }
-    });
-
-    let simInterval = setInterval(() => {
-        // ALWAYS update the signal, regardless of mode
-        if (currentTimer > 0) {
-            currentTimer--;
-            stats.timer.innerText = currentTimer;
-            
-            // Auto-yellow transition
-            if (currentTimer < 5 && lights.green.classList.contains('active')) {
-                setLight('yellow');
-            }
-        } else {
-            // Switch lights
-            if (lights.red.classList.contains('active')) {
-                setLight('green');
-                // DYNAMIC DURATION based on AI detection
-                const total = parseInt(stats.total.innerText) || 0;
-                if (isAmbulanceDetected) {
-                    currentTimer = 45;
-                    isAmbulanceDetected = false;
-                } else if (total > 30) {
-                    currentTimer = 60; // Heavy traffic gets more time
-                    addAlert('AI LOGIC: Heavy traffic detected, extending green phase', 'alert-info');
-                } else if (total < 5 && total > 0) {
-                    currentTimer = 15; // Light traffic changes faster
-                    addAlert('AI LOGIC: Low traffic detected, shortening green phase', 'alert-info');
-                } else {
-                    currentTimer = 30;
-                }
-            } else {
-                setLight('red');
-                currentTimer = 20;
-            }
-        }
-
-        // Only do random simulation if in pure Demo mode
-        if (isDemo) {
-            if (Math.random() > 0.7) {
-                const types = ['car', 'bike', 'truck', 'auto'];
-                const type = types[Math.floor(Math.random() * types.length)];
-                vehicleCounts[type]++;
-                updateStats();
-            }
-        }
-    }, 1000);
+    setInterval(updateForecast, 15000);
+    updateForecast();
 });

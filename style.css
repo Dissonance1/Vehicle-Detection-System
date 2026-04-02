@@ -40,31 +40,39 @@ body {
     border-radius: 20px;
 }
 
-header {
-    padding: 1rem 5%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: sticky;
-    top: 1rem;
-    z-index: 1000;
-    margin: 1rem 5%;
-    width: 90%;
-}
-
-.nav-modes {
+/* Floating Controls at Bottom */
+.floating-controls {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     gap: 1rem;
+    padding: 0.8rem 2rem;
+    z-index: 2000;
+    border-radius: 100px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .mode-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0.6rem 1.2rem;
+    padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
+    font-weight: 600;
     background: var(--card-bg);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
 }
 
 .mode-btn.active {
@@ -73,10 +81,168 @@ header {
 }
 
 .main-container {
-    padding: 2rem 5% 5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 100%;
+    margin: 0;
+    min-height: 100vh;
+}
+
+/* 4-Way Intersection Grid - THE FOCUS */
+.intersection-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.direction-label {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 242, 254, 0.2);
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid var(--primary);
+    backdrop-filter: blur(5px);
+    z-index: 10;
+}
+
+.mini-stats {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    font-size: 0.75rem;
+    z-index: 90;
+}
+
+.lane-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.lane-label {
+    color: var(--text-dim);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.lane-stat b {
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+.physical-signal-unit {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #121212;
+    padding: 15px 10px;
+    border-radius: 12px;
+    border: 2px solid #222;
+    box-shadow: 
+        inset 0 0 10px rgba(0,0,0,1),
+        3px 3px 10px rgba(0,0,0,0.5);
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 50px;
+    z-index: 100;
+}
+
+.signal-lens {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.05);
+    position: relative;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+    transition: all 0.3s ease;
+}
+
+/* Hood/Shroud effect */
+.signal-lens::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -5px;
+    right: -5px;
+    height: 15px;
+    background: #121212;
+    border-radius: 10px 10px 0 0;
+    border: 1px solid #222;
+    border-bottom: none;
+    z-index: 1;
+}
+
+.signal-lens.red.active {
+    background: #ff1744;
+    box-shadow: 0 0 20px #ff1744, inset 0 0 10px rgba(255,255,255,0.3);
+    color: transparent;
+}
+
+.signal-lens.active {
+    color: #00e676;
+    text-shadow: 0 0 15px #00e676, 0 0 30px #00e676;
+    background: #0a2a1a;
+    box-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
+}
+
+.clickable-feed {
+    cursor: pointer;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.clickable-feed:hover {
+    transform: translateY(-5px) scale(1.02);
+    border-color: var(--primary);
+}
+
+.flow-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    color: var(--success);
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+    z-index: 5;
+    filter: drop-shadow(0 0 10px rgba(0, 230, 118, 0.5));
+}
+
+.flow-indicator.active {
+    opacity: 0.8;
+    animation: flow-pulse 1.5s infinite;
+}
+
+@keyframes flow-pulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
 }
 
 /* Dashboard Section */
@@ -91,6 +257,16 @@ header {
     width: 100%;
     aspect-ratio: 16/9;
     overflow: hidden;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.video-feed-container video, 
+.video-feed-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .video-placeholder {
@@ -144,29 +320,41 @@ header {
 }
 
 /* Control Panel */
-.control-sidebar {
+.signal-grid {
     display: flex;
-    flex-direction: column;
     gap: 2rem;
+    margin-bottom: 1rem;
 }
 
-.traffic-light-sim {
-    padding: 2rem;
+.signal-unit {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
 }
 
-.light-housing {
+.light-housing-mini {
     background: #1a1a2e;
-    padding: 1rem;
-    border-radius: 40px;
+    padding: 0.5rem;
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    border: 2px solid rgba(255, 255, 255, 0.05);
+    gap: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+.light-mini {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #333;
+    transition: all 0.3s ease;
+}
+
+.light-mini.red.active { background: #ff5252; box-shadow: 0 0 10px #ff5252; }
+.light-mini.green.active { background: #00e676; box-shadow: 0 0 10px #00e676; }
 
 .light {
     width: 50px;
@@ -239,9 +427,15 @@ button:hover {
 
 .chart-bar {
     flex: 1;
-    background: var(--primary);
+    background: linear-gradient(to top, var(--secondary), var(--primary));
     border-radius: 4px 4px 0 0;
-    transition: height 1s ease;
+    transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.chart-bar:hover {
+    filter: brightness(1.2);
+    cursor: help;
 }
 
 .overlay-status {

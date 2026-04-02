@@ -7,71 +7,139 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="glass">
-        <div class="logo">TRAFFIC.AI</div>
-        <nav class="nav-modes">
-            <input type="file" id="image-upload" accept="image/*,video/*" style="display: none;">
-            <button class="mode-btn" onclick="document.getElementById('image-upload').click()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                Upload Data
-            </button>
-            <button class="mode-btn" id="live-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                Go Live
-            </button>
-            <button class="mode-btn" id="demo-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                Simulation
-            </button>
-        </nav>
-    </header>
-
     <main class="main-container">
-        <!-- Live Monitoring Section -->
         <section class="dashboard-view">
-            <div class="video-feed-container glass">
-                <div class="video-placeholder" id="video-feed">
-                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
-                    <p style="color: var(--text-dim); margin-top: 1rem;">Waiting for Video Input...</p>
+            <div class="intersection-grid">
+                <!-- North Feed -->
+                <div class="video-feed-container glass clickable-feed" id="container-N" onclick="document.getElementById('upload-N').click()">
+                    <input type="file" id="upload-N" hidden accept="video/*">
+                    <div class="direction-label">NORTH</div>
+                    <div class="video-placeholder" id="video-feed-N">
+                        <p style="color: var(--text-dim); font-size: 0.8rem;">Click to Upload North Video</p>
+                    </div>
+                    <div class="flow-indicator" id="flow-N">
+                        <svg class="arrow-straight" viewBox="0 0 24 24"><path d="M12 4l-8 8h16v-2h-16z" fill="currentColor"/></svg>
+                        <svg class="arrow-left" viewBox="0 0 24 24" style="display: none;"><path d="M20 9v6h-8v4l-8-7 8-7v4h8z" fill="currentColor"/></svg>
+                    </div>
+                    <div class="physical-signal-unit" id="unit-N">
+                        <div class="signal-lens red" id="signal-N-RED"></div>
+                        <div class="signal-lens arrow-straight" id="signal-N-S">↑</div>
+                        <div class="signal-lens arrow-left" id="signal-N-L">←</div>
+                        <div class="signal-lens arrow-right" id="signal-N-R">→</div>
+                    </div>
+                    <div class="mini-stats">
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 1 (←)</span>
+                            <b id="count-N-L">0</b>
+                        </div>
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 2 (↑ →)</span>
+                            <b id="count-N-S">0</b>
+                        </div>
+                    </div>
                 </div>
-                <canvas id="detection-canvas" class="detection-overlay"></canvas>
+
+                <!-- South Feed -->
+                <div class="video-feed-container glass clickable-feed" id="container-S" onclick="document.getElementById('upload-S').click()">
+                    <input type="file" id="upload-S" hidden accept="video/*">
+                    <div class="direction-label">SOUTH</div>
+                    <div class="video-placeholder" id="video-feed-S">
+                        <p style="color: var(--text-dim); font-size: 0.8rem;">Click to Upload South Video</p>
+                    </div>
+                    <div class="flow-indicator" id="flow-S">
+                        <svg class="arrow-straight" viewBox="0 0 24 24" style="transform: rotate(180deg);"><path d="M12 4l-8 8h16v-2h-16z" fill="currentColor"/></svg>
+                        <svg class="arrow-left" viewBox="0 0 24 24" style="display: none; transform: rotate(180deg);"><path d="M20 9v6h-8v4l-8-7 8-7v4h8z" fill="currentColor"/></svg>
+                    </div>
+                    <div class="physical-signal-unit" id="unit-S">
+                        <div class="signal-lens red" id="signal-S-RED"></div>
+                        <div class="signal-lens arrow-straight" id="signal-S-S">↑</div>
+                        <div class="signal-lens arrow-left" id="signal-S-L">←</div>
+                        <div class="signal-lens arrow-right" id="signal-S-R">→</div>
+                    </div>
+                    <div class="mini-stats">
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 1 (←)</span>
+                            <b id="count-S-L">0</b>
+                        </div>
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 2 (↑ →)</span>
+                            <b id="count-S-S">0</b>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- East Feed -->
+                <div class="video-feed-container glass clickable-feed" id="container-E" onclick="document.getElementById('upload-E').click()">
+                    <input type="file" id="upload-E" hidden accept="video/*">
+                    <div class="direction-label">EAST</div>
+                    <div class="video-placeholder" id="video-feed-E">
+                        <p style="color: var(--text-dim); font-size: 0.8rem;">Click to Upload East Video</p>
+                    </div>
+                    <div class="flow-indicator" id="flow-E">
+                        <svg class="arrow-straight" viewBox="0 0 24 24" style="transform: rotate(90deg);"><path d="M12 4l-8 8h16v-2h-16z" fill="currentColor"/></svg>
+                        <svg class="arrow-left" viewBox="0 0 24 24" style="display: none; transform: rotate(90deg);"><path d="M20 9v6h-8v4l-8-7 8-7v4h8z" fill="currentColor"/></svg>
+                    </div>
+                    <div class="physical-signal-unit" id="unit-E">
+                        <div class="signal-lens red" id="signal-E-RED"></div>
+                        <div class="signal-lens arrow-straight" id="signal-E-S">↑</div>
+                        <div class="signal-lens arrow-left" id="signal-E-L">←</div>
+                        <div class="signal-lens arrow-right" id="signal-E-R">→</div>
+                    </div>
+                    <div class="mini-stats">
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 1 (←)</span>
+                            <b id="count-E-L">0</b>
+                        </div>
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 2 (↑ →)</span>
+                            <b id="count-E-S">0</b>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- West Feed -->
+                <div class="video-feed-container glass clickable-feed" id="container-W" onclick="document.getElementById('upload-W').click()">
+                    <input type="file" id="upload-W" hidden accept="video/*">
+                    <div class="direction-label">WEST</div>
+                    <div class="video-placeholder" id="video-feed-W">
+                        <p style="color: var(--text-dim); font-size: 0.8rem;">Click to Upload West Video</p>
+                    </div>
+                    <div class="flow-indicator" id="flow-W">
+                        <svg class="arrow-straight" viewBox="0 0 24 24" style="transform: rotate(-90deg);"><path d="M12 4l-8 8h16v-2h-16z" fill="currentColor"/></svg>
+                        <svg class="arrow-left" viewBox="0 0 24 24" style="display: none; transform: rotate(-90deg);"><path d="M20 9v6h-8v4l-8-7 8-7v4h8z" fill="currentColor"/></svg>
+                    </div>
+                    <div class="physical-signal-unit" id="unit-W">
+                        <div class="signal-lens red" id="signal-W-RED"></div>
+                        <div class="signal-lens arrow-straight" id="signal-W-S">↑</div>
+                        <div class="signal-lens arrow-left" id="signal-W-L">←</div>
+                        <div class="signal-lens arrow-right" id="signal-W-R">→</div>
+                    </div>
+                    <div class="mini-stats">
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 1 (←)</span>
+                            <b id="count-W-L">0</b>
+                        </div>
+                        <div class="lane-stat">
+                            <span class="lane-label">Lane 2 (↑ →)</span>
+                            <b id="count-W-S">0</b>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Aggregated Stats -->
             <div class="stats-grid">
                 <div class="stat-card glass">
-                    <div class="stat-label">Total Vehicles</div>
+                    <div class="stat-label">Total Intersection Volume</div>
                     <div class="stat-value" id="count-total">0</div>
                 </div>
                 <div class="stat-card glass">
-                    <div class="stat-label">Ambulances</div>
-                    <div class="stat-value" style="color: var(--error);" id="count-ambulance">0</div>
-                </div>
-                <div class="stat-card glass">
-                    <div class="stat-label">Traffic Density</div>
+                    <div class="stat-label">AI Traffic Density</div>
                     <div class="stat-value" id="density-val">LOW</div>
                 </div>
                 <div class="stat-card glass">
-                    <div class="stat-label">Avg Speed</div>
-                    <div class="stat-value" id="avg-speed">0 km/h</div>
-                </div>
-            </div>
-
-            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-                <div class="stat-card glass">
-                    <div class="stat-label">Cars</div>
-                    <div class="stat-value" style="font-size: 1.2rem;" id="count-car">0</div>
-                </div>
-                <div class="stat-card glass">
-                    <div class="stat-label">Bikes</div>
-                    <div class="stat-value" style="font-size: 1.2rem;" id="count-bike">0</div>
-                </div>
-                <div class="stat-card glass">
-                    <div class="stat-label">Trucks</div>
-                    <div class="stat-value" style="font-size: 1.2rem;" id="count-truck">0</div>
-                </div>
-                <div class="stat-card glass">
-                    <div class="stat-label">Autos</div>
-                    <div class="stat-value" style="font-size: 1.2rem;" id="count-auto">0</div>
+                    <div class="stat-label">Forecasted Load (Next 1h)</div>
+                    <div class="stat-value" id="forecast-val">0</div>
                 </div>
             </div>
         </section>
@@ -79,20 +147,38 @@
         <!-- Control Sidebar -->
         <aside class="control-sidebar">
             <div class="traffic-light-sim glass">
-                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">DYNAMINC SIGNAL CONTROL</h3>
-                <div class="light-housing">
-                    <div class="light red" id="light-red"></div>
-                    <div class="light yellow" id="light-yellow"></div>
-                    <div class="light green active" id="light-green"></div>
+                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">4-WAY SIGNAL COORDINATION</h3>
+                <div class="signal-grid">
+                    <div class="signal-unit">
+                        <span>N/S</span>
+                        <div class="light-housing-mini">
+                            <div class="light-mini red" id="light-ns-red"></div>
+                            <div class="light-mini green active" id="light-ns-green"></div>
+                        </div>
+                    </div>
+                    <div class="signal-unit">
+                        <span>E/W</span>
+                        <div class="light-housing-mini">
+                            <div class="light-mini red active" id="light-ew-red"></div>
+                            <div class="light-mini green" id="light-ew-green"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="timer-display" id="signal-timer">30</div>
-                <p id="signal-status" style="color: var(--success); font-weight: 600;">FLOW OPTIMIZED</p>
+                <p id="signal-status" style="color: var(--success); font-weight: 600; font-size: 0.8rem;">OPTIMIZING FLOW</p>
             </div>
 
             <div class="glass" style="padding: 1.5rem;">
-                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">CONGESTION PREDICTION (15m)</h3>
+                <h3 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim);">LSTM TRAFFIC FORECAST (NEXT 5h)</h3>
                 <div class="prediction-chart" id="chart">
                     <!-- Bars injected by JS -->
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-dim);">
+                    <span>+1h</span>
+                    <span>+2h</span>
+                    <span>+3h</span>
+                    <span>+4h</span>
+                    <span>+5h</span>
                 </div>
             </div>
 
@@ -103,7 +189,12 @@
                 </div>
             </div>
         </aside>
-    </main>
+    <div class="floating-controls glass">
+        <button class="mode-btn" id="live-btn">GO LIVE</button>
+        <button class="mode-btn" id="demo-btn" style="background: rgba(0, 242, 254, 0.2);">DEMO MODE</button>
+        <input type="file" id="bulk-upload" hidden multiple accept="video/*">
+        <button class="mode-btn" onclick="document.getElementById('bulk-upload').click()">UPLOAD FEEDS</button>
+    </div>
 
     <script src="script.js"></script>
 </body>
